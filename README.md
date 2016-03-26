@@ -18,5 +18,4 @@ Sample Usage:
 
 Default Output:
 
-{ title: <title> | venue_name: <vanue name> | start_time: <start time> | venue_address: <venue address> }
-...
+"{ title: <title> | venue_name: <vanue name> | start_time: <start time> | venue_address: <venue address> }"
