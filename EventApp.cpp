@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <string.h>
 #include <iostream>
+#include <sstream>
 #include <thread>
 #include <chrono>
 #include <utility>
@@ -25,22 +26,29 @@ bool EventApp::ProcessQuery( string query_arguments )
     if( !curl ){
 	return false;
     }
-    //use xml format for simple parsing
-    // string query = "http://api.eventful.com/rest/events/search?app_key=Bv3nNxLh5nv8rx4b&keywords=books&location=San+Diego&category=technology";
-    string query = "http://api.eventful.com/rest/events/search?app_key=Bv3nNxLh5nv8rx4b" + query_arguments;
-    curl_easy_setopt( curl, CURLOPT_URL, query.c_str() );
-
-    // /* example.com is redirected, so we tell libcurl to follow redirection */ 
-    // curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-
-    /* send all data to this function  */ 
-    curl_easy_setopt( curl, CURLOPT_WRITEFUNCTION, EventApp::EventExtractCallback );
-
-    /* we pass our 'chunk' struct to the callback function */ 
-    curl_easy_setopt( curl, CURLOPT_WRITEDATA, (void *) this );
+    //sample query
+    //string query = "http://api.eventful.com/rest/events/search?app_key=Bv3nNxLh5nv8rx4b&keywords=books&location=San+Diego&category=technology";
     
-    /* Perform the request, res will get the return code */ 
-    res = curl_easy_perform( curl );
+    /* Perform the request, res will get the return code */
+    do {
+	stringstream ss;
+	ss.str("");
+	ss << _chunk._current_page_num;
+	string current_page;
+	ss >> current_page;
+	string query = "http://api.eventful.com/rest/events/search?app_key=Bv3nNxLh5nv8rx4b" + query_arguments;
+	query += "&page_number=";
+	query += current_page;
+	curl_easy_setopt( curl, CURLOPT_URL, query.c_str() );
+	/* send all data to this function  */ 
+	curl_easy_setopt( curl, CURLOPT_WRITEFUNCTION, EventApp::EventExtractCallback );
+	/* we pass our 'chunk' struct to the callback function */ 
+	curl_easy_setopt( curl, CURLOPT_WRITEDATA, (void *) this );
+	res = curl_easy_perform( curl );
+	cout << "total pages: " <<  _chunk._total_page_num << endl;
+	cout << "current page: " <<  _chunk._current_page_num << endl;
+	++_chunk._current_page_num;
+    }while( res == CURLE_OK && _chunk._current_page_num <= _chunk._total_page_num );
 
     /* Check for errors */ 
     if(res != CURLE_OK){
@@ -88,18 +96,33 @@ size_t EventApp::EventExtractCallback( void * contents, size_t size, size_t nmem
 #endif
 
     //search for certain keywords, assume xml format
+    int total_page_number;
+    if( event_app->ProcessExtract( content_str, "page_count", total_page_number ) ) //save when found
+    {
+    	mem->_total_page_num = total_page_number;
+    }
+
+    int current_page_number;
+    if( event_app->ProcessExtract( content_str, "page_number", current_page_number ) ) //save when found
+    {
+    	mem->_current_page_num = current_page_number;
+    }
+    
     size_t found_event_start = content_str.find( "<event id=" );
     if( string::npos != found_event_start ){
 	found_event_start = content_str.find( ">", found_event_start );
-	++found_event_start;
+	if( string::npos != found_event_start )
+	    ++found_event_start;
     }
 
     size_t last_found = string::npos;
+    bool bFound = false;
     while( string::npos != found_event_start && found_event_start < nmemb ){
 #ifdef DEBUG
 	cout << "Found <event>" << endl;
 #endif
-	size_t found_event_end = content_str.find( "</event>", found_event_start );
+	string end_tag = "</event>";
+	size_t found_event_end = content_str.find( end_tag, found_event_start );
         if( string::npos != found_event_end ){
 #ifdef DEBUG
 	    cout << "Found </event>" << endl;
@@ -112,31 +135,40 @@ size_t EventApp::EventExtractCallback( void * contents, size_t size, size_t nmem
 
 	size_t str_size = found_event_end - found_event_start;
 	string event_content( content_str, found_event_start, str_size );
+	found_event_end += end_tag.length();
 	last_found = found_event_end;
+	bFound = true;
 
 	//process found event
 	event_app->ProcessEventContent( event_content );
-
+	
 	size_t next = found_event_end + 1;
-	if( string::npos == next ){
-	    break;
-	}
+
 	found_event_start = content_str.find( "<event id=", next );
 	if( string::npos != found_event_start ){
 	    found_event_start = content_str.find( ">", found_event_start );
-	    ++found_event_start;
+	    if( string::npos != found_event_start )
+		++found_event_start;
+	}else{
+	    break;
 	}
     }
 
     //remove found event contents if applicable
-    if( string::npos == last_found || content_str.length() == 0 ){
+    if( ( string::npos == last_found || content_str.length() == 0 ) && !bFound ){
 	size_t size_remain = 0;
 	mem->_size = size_remain;
 	mem->_data_buffer = content_str;
     }else{
-	content_str = content_str.substr( last_found );
-	size_t size_remain = content_str.length() - last_found;
-	mem->_size = size_remain;
+	if( string::npos == last_found ){
+	    content_str = "";
+	    size_t size_remain = 0;
+	    mem->_size = size_remain;
+	}else{
+	    content_str = content_str.substr( last_found );
+	    size_t size_remain = content_str.length() - last_found;
+	    mem->_size = size_remain;
+	}
 	mem->_data_buffer = content_str;
     }
 
@@ -148,6 +180,37 @@ bool EventApp::RegisterContentExtraction( std::vector< std::string > labels, t_e
 {
     _content_extraction_labels = labels;
     _content_extraction_func = func;
+    return true;
+}
+bool EventApp::ProcessExtract( std::string input, std::string label, std::string & extracted ){
+    //assume xml format
+    string label_start = "<" + label;
+    label_start += ">";
+    string label_end = "</" + label;
+    label_end += ">";
+    //extract content detail
+    size_t index_start = input.find( label_start );
+    if( string::npos == index_start )
+	return false;
+    size_t index_end = input.find( label_end, index_start + label_start.length() );
+    if( string::npos == index_end )
+	return false;
+
+    extracted = input.substr( index_start + label_start.length(), index_end - index_start - label_start.length() );
+    return true;
+}
+bool EventApp::ProcessExtract( std::string input, std::string label, int & extracted_int ){
+    std::string extracted;
+    if( !ProcessExtract( input, label, extracted ) )
+	return false;
+
+    stringstream ss;
+    ss.str("");
+    ss << extracted;
+    ss >> extracted_int;
+    if( ss.fail() )
+	return false;
+	    
     return true;
 }
 bool EventApp::ProcessEventContent( std::string event_content ){
@@ -197,6 +260,24 @@ bool EventApp::DefaultPrintExtracted( vector<pair<string,string> > extracted )
 	}else{
 	    cout << " }" << endl;
 	}
+    }
+    return true;
+}
+bool EventApp::Query( map<string,string> args )
+{
+    string query_args;
+    ProcessQueryArgs( args, query_args );
+    bool bRet = ProcessQuery( query_args );
+    return bRet;
+}
+bool EventApp::ProcessQueryArgs( map<string,string> args, string & query_args )
+{
+    query_args = "";
+    for( auto i : args ){
+	query_args += "&";
+	query_args += i.first;
+	query_args += "=";
+	query_args += i.second;
     }
     return true;
 }

@@ -7,10 +7,13 @@
 
 using namespace std;
 
-int main(void)
+int main( int argc, char ** argv )
 {
-    // string query_args = "http://api.eventful.com/rest/events/search?app_key=Bv3nNxLh5nv8rx4b&keywords=books&location=San+Diego&category=technology";
-    string query_args = "&keywords=books&location=San+Diego&category=technology";
+    // if( argc < 1 )
+    // 	return 0;
+    
+    // string query_args = "&keywords=books&location=San+Diego&category=technology&within=20";
+    string query_args = "&location=San%20Diego&category=technology&within=200";
     EventApp event_app;
     bool bRet;
     EventApp::t_extraction_func func_cout = []( vector<pair<string,string> > extracted ) -> bool {
@@ -32,8 +35,7 @@ int main(void)
 	}
 	return true;
     };
-    bRet = event_app.RegisterContentExtraction( { "title", "venue_name", "city_name", "venue_address" }, func_cout );
-    // bRet = event_app.RegisterContentExtraction( { "title", "venue_name", "city_name", "venue_address" } );
-    bRet = event_app.ProcessQuery( query_args );
+    bRet = event_app.RegisterContentExtraction( { "title", "venue_name", "city_name", "venue_address" } );
+    bRet = event_app.Query( { { "location", "San%20Diego" }, { "within", "200" }, { "page_size", "10" } } );
     return 0;
 }
