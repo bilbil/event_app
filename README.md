@@ -13,6 +13,7 @@ make tests
 Sample Usage:
 
 ./build/eventapp "fieldname1:fieldval1|fieldname2:fieldval2|..."
+
 ./build/eventapp "location:Vancouver|within:100|category:business|page_size:50"
 
 Default Output:
