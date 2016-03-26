@@ -34,6 +34,7 @@ public:
 private:
     bool ProcessQueryArgs( std::map<std::string,std::string> args, std::string & query );
     bool ProcessQuery( std::string query );
+    bool ProcessEscapeCharacters( std::string input, std::map<std::string,std::string> escape_chars, std::string & escaped );
     static bool DefaultPrintExtracted( std::vector<std::pair<std::string,std::string> > extracted );
     bool ProcessExtract( std::string input, std::string label, std::string & extracted );
     bool ProcessExtract( std::string input, std::string label, int & extracted );

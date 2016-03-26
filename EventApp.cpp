@@ -273,11 +273,38 @@ bool EventApp::Query( map<string,string> args )
 bool EventApp::ProcessQueryArgs( map<string,string> args, string & query_args )
 {
     query_args = "";
+    map<string,string> escape_chars { {" ","%20"}, {"$", "%24"}, {"&","%26"}, {"`","%60"}, {":","%3A"}, {"<","%3C"},
+    				      {">","%3E"}, {"[","%5B"}, {"]","%5D"}, {"{","%7B"}, {"}","%7D"}, {"\"","%22"},
+    				      {"+","%2B"}, {"#","%23"}, {"%","%25"}, {"@","%40"}, {"/","%2F"}, {";","%3B"},
+           			      {"=","%3D"}, {"?","%3F"}, {"\\","%5C"}, {"^","%5E"}, {"|","%7C"}, {"~","%7E"},
+    				      {"'","%27"}, {",","%2C"}, {".","%2E"}
+                                    };
     for( auto i : args ){
+	string escaped_arg;
+	string escaped_value;
+	ProcessEscapeCharacters( i.first, escape_chars, escaped_arg );
+	ProcessEscapeCharacters( i.second, escape_chars, escaped_value );
+
 	query_args += "&";
-	query_args += i.first;
+	query_args += escaped_arg;
 	query_args += "=";
-	query_args += i.second;
+	query_args += escaped_value;
     }
+    return true;
+}
+
+bool EventApp::ProcessEscapeCharacters( string input, map<string,string> escape_chars, string & escaped )
+{
+    for( auto & i : escape_chars ){
+	size_t index_find = input.find( i.first );
+	while( string::npos != index_find ){
+	    string before = input.substr( 0, index_find );
+	    string after = input.substr( index_find + 1 );
+	    input = before + i.second;
+	    input += after;
+	    index_find = input.find( i.first, index_find + i.second.length() );
+	}
+    }
+    escaped = input;
     return true;
 }

@@ -36,6 +36,6 @@ int main( int argc, char ** argv )
 	return true;
     };
     bRet = event_app.RegisterContentExtraction( { "title", "venue_name", "city_name", "venue_address" } );
-    bRet = event_app.Query( { { "location", "San%20Diego" }, { "within", "200" }, { "page_size", "10" } } );
+    bRet = event_app.Query( { { "location", "San Diego" }, { "within", "200" }, { "page_size", "10" } } );
     return 0;
 }
