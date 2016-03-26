@@ -45,8 +45,10 @@ bool EventApp::ProcessQuery( string query_arguments )
 	/* we pass our 'chunk' struct to the callback function */ 
 	curl_easy_setopt( curl, CURLOPT_WRITEDATA, (void *) this );
 	res = curl_easy_perform( curl );
+	cout << "-----"<< endl;
 	cout << "total pages: " <<  _chunk._total_page_num << endl;
 	cout << "current page: " <<  _chunk._current_page_num << endl;
+	cout << "-----"<< endl;
 	++_chunk._current_page_num;
     }while( res == CURLE_OK && _chunk._current_page_num <= _chunk._total_page_num );
 
@@ -56,16 +58,12 @@ bool EventApp::ProcessQuery( string query_arguments )
 	fprintf( stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res) );
 #endif
     } else {
-// #ifdef DEBUG	
-	printf( "%lu bytes retrieved\n", (long)_chunk._total_bytes_retrieved );
-// #endif
+	cout << "-----"<< endl;
+	fprintf( stdout, "%lu bytes retrieved\n", (long)_chunk._total_bytes_retrieved );
+	cout << "Number of events found: " << _chunk._count_event_found << endl;
     }
     /* always cleanup */ 
     curl_easy_cleanup(curl);
-
-// #ifdef DEBUG
-    cout << "Number of <event> found: " << _chunk._count_event_found << endl;
-// #endif
 
     return true;
 }
@@ -89,11 +87,6 @@ size_t EventApp::EventExtractCallback( void * contents, size_t size, size_t nmem
     content_buffer[ realsize ] = '\0';
 
     string content_str = mem->_data_buffer + string( content_buffer );
-    
-#ifdef DEBUG
-    cout << "Invoked WriteCallback: " << realsize << " bytes retrieved. " << endl;
-    cout << "-------" << endl;
-#endif
 
     //search for certain keywords, assume xml format
     int total_page_number;
@@ -173,7 +166,7 @@ size_t EventApp::EventExtractCallback( void * contents, size_t size, size_t nmem
     }
 
     free( content_buffer );
-
+    
     return realsize;
 }
 bool EventApp::RegisterContentExtraction( std::vector< std::string > labels, t_extraction_func func )
@@ -223,26 +216,26 @@ bool EventApp::ProcessEventContent( std::string event_content ){
     auto it = _content_extraction_labels.begin();
     auto it_end = _content_extraction_labels.end();
     for( ; it != it_end; ++it ){
-	//assume xml format
-	string label = *it;
-	string label_start = "<" + label;
-	label_start += ">";
-	string label_end = "</" + label;
-	label_end += ">";
-	//extract content detail
-	size_t index_start = event_content.find( label_start );
-	if( string::npos == index_start ){
-	    continue;
-	}
-	size_t index_end = event_content.find( label_end, index_start + label_start.length() );
-	string content_detail = event_content.substr( index_start + label_start.length(), index_end - index_start - label_start.length() );
+    	//assume xml format
+    	string label = *it;
+    	string label_start = "<" + label;
+    	label_start += ">";
+    	string label_end = "</" + label;
+    	label_end += ">";
+    	//extract content detail
+    	size_t index_start = event_content.find( label_start );
+    	if( string::npos == index_start ){
+    	    continue;
+    	}
+    	size_t index_end = event_content.find( label_end, index_start + label_start.length() );
+    	string content_detail = event_content.substr( index_start + label_start.length(), index_end - index_start - label_start.length() );
 
-	//escape characters in XML
-	map<string,string> escape_chars { {"&quot;","\""}, {"&amp;", "&"}, {"&apos;","'"}, {"&lt;","<"}, {"&gt;",">"} };
-	string escaped_content;
-	ProcessEscapeCharacters( content_detail, escape_chars, escaped_content );
+    	//escape characters in XML
+    	map<string,string> escape_chars { {"&quot;","\""}, {"&amp;", "&"}, {"&apos;","'"}, {"&lt;","<"}, {"&gt;",">"} };
+    	string escaped_content;
+    	ProcessEscapeCharacters( content_detail, escape_chars, escaped_content );
 
-	extracted.push_back( pair<string,string>( label, escaped_content ) );
+    	extracted.push_back( pair<string,string>( label, escaped_content ) );
     }
     //call function/functor
     auto func = _content_extraction_func;
@@ -256,18 +249,18 @@ bool EventApp::DefaultPrintExtracted( vector<pair<string,string> > extracted )
     auto it_start = extracted.begin();
     auto it_end = extracted.end();
     for( auto it = it_start; it != it_end; ++it ){
-	string label = it->first;
-	string detail = it->second;
-	if( it == it_start ){
-	    cout << "{ ";
-	}
-	cout << label << ": " << detail;
-	auto it_next = std::next(it);
-	if( it_next != it_end ){
-	    cout << " | ";
-	}else{
-	    cout << " }" << endl;
-	}
+    	string label = it->first;
+    	string detail = it->second;
+    	if( it == it_start ){
+    	    cout << "{ ";
+    	}
+    	cout << label << ": " << detail;
+    	auto it_next = std::next(it);
+    	if( it_next != it_end ){
+    	    cout << " | ";
+    	}else{
+    	    cout << " }" << endl;
+    	}
     }
     return true;
 }
