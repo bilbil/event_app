@@ -2,6 +2,9 @@
 #include "catch.hpp"
 #include <map>
 #include <string>
+#include <iostream>
+#include <fstream>
+#include <Sstream>
 
 #include "EventApp.h"
 #include "Test.h"
@@ -75,5 +78,37 @@ TEST_CASE( "Internal Functions", "[Internal]" ) {
 	bRet = tester.TestProcessEscapeCharacters( p_event_app, input, escape_chars, escaped );
 	CHECK( true == bRet );
 	CHECK( "1 & 2 3 4 & 5"== escaped );
-    }        
+    }
+    SECTION( "Local Input Source XML Processing: local.xml" ) {
+	ifstream in("local.xml");
+	streambuf *cinbuf = cin.rdbuf(); //save old buf
+	cin.rdbuf(in.rdbuf()); //redirect cin to file
+	string line;
+	stringstream ss;
+	ss.str("");
+	ss.clear();
+	while(std::getline(cin, line))  //input from the file in.txt
+	{
+	    ss << line;   //output to the file out.txt
+	}
+	cin.rdbuf(cinbuf);   //reset to standard input again
+
+	string data = ss.str();
+#ifdef DEBUG
+	cout << data << endl;
+#endif
+	//expect 100 items in sample XML file
+	int count_expected = 100;
+	int count_retrieved = 0;
+	//create a lambda to count number of events extracted
+	EventApp::t_extraction_func func_extraction = [&count_retrieved]( vector<pair<string,string> > extracted )->bool {
+	    ++count_retrieved;
+	    return true;
+	};
+	bRet = tester.TestRegisterContentExtraction( p_event_app, { "title", "venue_name", "start_time", "venue_address" }, func_extraction );
+	CHECK( true == bRet );
+	bRet = tester.TestProcessQuerySimulated( p_event_app, "arbitrary query arguments", data.c_str() );
+	CHECK( true == bRet );
+	CHECK( count_expected == count_retrieved );
+    }
 }

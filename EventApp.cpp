@@ -26,10 +26,9 @@ bool EventApp::ProcessQuery( string query_arguments )
     if( !curl ){
 	return false;
     }
-    //sample query
-    //string query = "http://api.eventful.com/rest/events/search?app_key=Bv3nNxLh5nv8rx4b&keywords=books&location=San+Diego&category=technology";
     
     /* Perform the request, res will get the return code */
+    cout << "\x1B[0m";
     do {
 	stringstream ss;
 	ss.str("");
@@ -45,28 +44,67 @@ bool EventApp::ProcessQuery( string query_arguments )
 	/* we pass our 'chunk' struct to the callback function */ 
 	curl_easy_setopt( curl, CURLOPT_WRITEDATA, (void *) this );
 	res = curl_easy_perform( curl );
-	cout << "-----"<< endl;
+	cout << "\x1B[32m-----"<< endl;
 	cout << "total pages: " <<  _chunk._total_page_num << endl;
 	cout << "current page: " <<  _chunk._current_page_num << endl;
-	cout << "-----"<< endl;
+	cout << "\x1B[0m";
 	++_chunk._current_page_num;
     }while( res == CURLE_OK && _chunk._current_page_num <= _chunk._total_page_num );
+
+    /* always cleanup */ 
+    curl_easy_cleanup(curl);
 
     /* Check for errors */ 
     if(res != CURLE_OK){
 #ifdef DEBUG
 	fprintf( stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res) );
+	return false;
 #endif
     } else {
-	cout << "-----"<< endl;
+	cout << "\x1B[32m-----"<< endl;
 	fprintf( stdout, "%lu bytes retrieved\n", (long)_chunk._total_bytes_retrieved );
 	cout << "Number of events found: " << _chunk._count_event_found << endl;
+	cout << "\x1B[0m";
     }
-    /* always cleanup */ 
-    curl_easy_cleanup(curl);
+    return true;
+}
+
+bool EventApp::ProcessQuerySimulated( string query_arguments, const char * simulated_xml )
+{    
+    cout << "\x1B[0m";
+    bool b_check_size;
+    do {
+	size_t size = sizeof(char);
+	size_t nmemb = strlen( simulated_xml );
+	size_t check_size = EventExtractCallback( (void*) simulated_xml, size, nmemb, this );
+	if( check_size != size * nmemb ){
+	    b_check_size = false;
+	}else{
+	    b_check_size = true;
+	}
+	cout << "\x1B[32m-----"<< endl;
+	cout << "total pages: " <<  _chunk._total_page_num << endl;
+	cout << "current page: " <<  _chunk._current_page_num << endl;
+	cout << "\x1B[0m";
+	++_chunk._current_page_num;
+    }while( b_check_size && _chunk._current_page_num <= _chunk._total_page_num );
+
+    /* Check for errors */ 
+    if( !b_check_size ){
+#ifdef DEBUG
+	fprintf( stderr, "local XML processing failed.\n" );
+	return false;
+#endif
+    } else {
+	cout << "\x1B[32m-----"<< endl;
+	fprintf( stdout, "%lu bytes retrieved\n", (long)_chunk._total_bytes_retrieved );
+	cout << "Number of events found: " << _chunk._count_event_found << endl;
+	cout << "\x1B[0m";
+    }
 
     return true;
 }
+
 size_t EventApp::EventExtractCallback( void * contents, size_t size, size_t nmemb, void * data )
 {
     EventApp * event_app = ( EventApp *) data;
@@ -74,7 +112,7 @@ size_t EventApp::EventExtractCallback( void * contents, size_t size, size_t nmem
 
     size_t realsize = size * nmemb;
     
-    struct EventApp::MemoryStruct * mem = &event_app->_chunk;
+    MemoryStruct * mem = &event_app->_chunk;
     mem->_total_bytes_retrieved += realsize;
 
     //create temporary buffer with null termination
@@ -88,7 +126,9 @@ size_t EventApp::EventExtractCallback( void * contents, size_t size, size_t nmem
 
     string content_str = mem->_data_buffer + string( content_buffer );
 
-    //search for certain keywords, assume xml format
+    free( content_buffer );
+	
+    //simple search for certain keywords, assume xml format
     int total_page_number;
     if( event_app->ProcessExtract( content_str, "page_count", total_page_number ) ) //save when found
     {
@@ -132,7 +172,7 @@ size_t EventApp::EventExtractCallback( void * contents, size_t size, size_t nmem
 	last_found = found_event_end;
 	bFound = true;
 
-	//process found event
+	//process found event, could branch this call into separate thread here, but seems blockage is IO related, not CPU
 	event_app->ProcessEventContent( event_content );
 	
 	size_t next = found_event_end + 1;
@@ -164,8 +204,6 @@ size_t EventApp::EventExtractCallback( void * contents, size_t size, size_t nmem
 	}
 	mem->_data_buffer = content_str;
     }
-
-    free( content_buffer );
     
     return realsize;
 }
@@ -291,7 +329,9 @@ bool EventApp::ProcessQueryArgs( map<string,string> args, string & query_args )
 	query_args += "=";
 	query_args += escaped_value;
     }
+#ifdef DEBUG
     cout << "query: " << query_args << endl;
+#endif
     return true;
 }
 

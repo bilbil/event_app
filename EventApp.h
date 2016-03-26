@@ -10,10 +10,14 @@
 
 class Tester;
 
+class QuerySourceCurl{};
+class QuerySourceLocal{};
+
 class EventApp {
 public:
     using t_extraction_func = std::function<bool(std::vector<std::pair<std::string,std::string> >)>;
-    struct MemoryStruct {
+    class MemoryStruct {
+    public:
 	std::string _data_buffer;
 	size_t _size;
 	int _count_event_found;
@@ -31,9 +35,11 @@ public:
     };
     bool Query( std::map<std::string,std::string> args );
     bool RegisterContentExtraction( std::vector<std::string> labels, t_extraction_func func = EventApp::DefaultPrintExtracted );
+
 private:
     bool ProcessQueryArgs( std::map<std::string,std::string> args, std::string & query );
     bool ProcessQuery( std::string query );
+    bool ProcessQuerySimulated( std::string query_arguments, const char * simulated_xml );
     bool ProcessEscapeCharacters( std::string input, std::map<std::string,std::string> escape_chars, std::string & escaped );
     static bool DefaultPrintExtracted( std::vector<std::pair<std::string,std::string> > extracted );
     bool ProcessExtract( std::string input, std::string label, std::string & extracted );

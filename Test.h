@@ -20,6 +20,13 @@ public:
     bool TestProcessEscapeCharacters( EventApp * p_event_app, std::string input, std::map<std::string,std::string> escape_chars, std::string & escaped ){
 	return p_event_app->ProcessEscapeCharacters( input, escape_chars, escaped );
     }
+    bool TestRegisterContentExtraction( EventApp * p_event_app, std::vector< std::string > labels, EventApp::t_extraction_func func = EventApp::DefaultPrintExtracted )
+    {
+	return p_event_app->RegisterContentExtraction( labels, func );
+    }
+    bool TestProcessQuerySimulated( EventApp * p_event_app, std::string query_arguments, const char * simulated_xml ){
+	return p_event_app->ProcessQuerySimulated( query_arguments, simulated_xml );
+    }
 };
 
 #endif
