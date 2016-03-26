@@ -66,8 +66,14 @@ TEST_CASE( "Internal Functions", "[Internal]" ) {
 	string input = "Hello, here is $25 dollars & you can leave";
 	bRet = tester.TestProcessEscapeCharacters( p_event_app, input, escape_chars, escaped );
 	CHECK( true == bRet );
-	cout << escaped << endl;
 	CHECK( "Hello,%20here%20is%20%2425%20dollars%20%26%20you%20can%20leave"== escaped );
     }
-        
+    SECTION( "ProcessEscapeCharacters XML" ) {
+	map<string,string> escape_chars { {"&amp;","&"} };
+	string escaped;
+	string input = "1 &amp; 2 3 4 &amp; 5";
+	bRet = tester.TestProcessEscapeCharacters( p_event_app, input, escape_chars, escaped );
+	CHECK( true == bRet );
+	CHECK( "1 & 2 3 4 & 5"== escaped );
+    }        
 }

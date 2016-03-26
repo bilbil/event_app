@@ -9,8 +9,8 @@ using namespace std;
 
 int main( int argc, char ** argv )
 {
-    // if( argc < 1 )
-    // 	return 0;
+    if( argc < 1 )
+    	return 0;
     
     // string query_args = "&keywords=books&location=San+Diego&category=technology&within=20";
     string query_args = "&location=San%20Diego&category=technology&within=200";
@@ -35,7 +35,7 @@ int main( int argc, char ** argv )
 	}
 	return true;
     };
-    bRet = event_app.RegisterContentExtraction( { "title", "venue_name", "city_name", "venue_address" } );
-    bRet = event_app.Query( { { "location", "San Diego" }, { "within", "200" }, { "page_size", "10" } } );
+    bRet = event_app.RegisterContentExtraction( { "title", "venue_name", "start_time", "venue_address" } );
+    bRet = event_app.Query( { { "location", "San Diego" }, { "within", "200" }, { "category", "business" }, { "date", "2016020100-2016120100" },{ "page_size", "100" } } );
     return 0;
 }

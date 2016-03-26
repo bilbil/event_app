@@ -217,6 +217,7 @@ bool EventApp::ProcessEventContent( std::string event_content ){
 #ifdef DEBUG
     cout << "Event Content: " << event_content << endl;
 #endif
+
     //do a simple search for each registered content
     vector<pair<string,string> > extracted;
     auto it = _content_extraction_labels.begin();
@@ -235,7 +236,13 @@ bool EventApp::ProcessEventContent( std::string event_content ){
 	}
 	size_t index_end = event_content.find( label_end, index_start + label_start.length() );
 	string content_detail = event_content.substr( index_start + label_start.length(), index_end - index_start - label_start.length() );
-	extracted.push_back( pair<string,string>( label, content_detail ) );
+
+	//escape characters in XML
+	map<string,string> escape_chars { {"&quot;","\""}, {"&amp;", "&"}, {"&apos;","'"}, {"&lt;","<"}, {"&gt;",">"} };
+	string escaped_content;
+	ProcessEscapeCharacters( content_detail, escape_chars, escaped_content );
+
+	extracted.push_back( pair<string,string>( label, escaped_content ) );
     }
     //call function/functor
     auto func = _content_extraction_func;
@@ -245,6 +252,7 @@ bool EventApp::ProcessEventContent( std::string event_content ){
 bool EventApp::DefaultPrintExtracted( vector<pair<string,string> > extracted )
 {
     std::lock_guard<std::mutex> lock( _mutex_print );
+
     auto it_start = extracted.begin();
     auto it_end = extracted.end();
     for( auto it = it_start; it != it_end; ++it ){
@@ -290,21 +298,40 @@ bool EventApp::ProcessQueryArgs( map<string,string> args, string & query_args )
 	query_args += "=";
 	query_args += escaped_value;
     }
+    cout << "query: " << query_args << endl;
     return true;
 }
 
 bool EventApp::ProcessEscapeCharacters( string input, map<string,string> escape_chars, string & escaped )
 {
-    for( auto & i : escape_chars ){
-	size_t index_find = input.find( i.first );
-	while( string::npos != index_find ){
-	    string before = input.substr( 0, index_find );
-	    string after = input.substr( index_find + 1 );
-	    input = before + i.second;
-	    input += after;
-	    index_find = input.find( i.first, index_find + i.second.length() );
+    size_t index_searched = 0;
+    bool bFound;
+    do {
+	string str_first;
+	string str_replace;
+        bFound = false;
+	//find the first that matches
+	size_t index_first = string::npos;
+	for( auto & i : escape_chars ){	    
+	    size_t index_find = input.find( i.first, index_searched );
+	    if( string::npos != index_find ){
+		if( string::npos == index_first || index_find < index_first ){
+		    index_first = index_find;
+		    str_first = i.first;
+		    str_replace = i.second;
+		    bFound = true;
+		}
+	    }
 	}
-    }
+	//reform the string
+	if( bFound ){
+	    string before = input.substr( 0, index_first );
+	    string after = input.substr( index_first + str_first.length(), string::npos );
+	    input = before + str_replace;
+	    input += after;
+	    index_searched = index_first + str_replace.length();
+	}
+    }while( bFound );
     escaped = input;
     return true;
 }
